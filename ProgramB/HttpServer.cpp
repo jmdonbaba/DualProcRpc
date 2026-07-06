@@ -4,6 +4,7 @@
 #include "shared/Protocol.h"
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QTimer>
 #include <QDebug>
 
 HttpServer::HttpServer(QObject *parent)
@@ -128,11 +129,10 @@ void HttpServer::onReadyRead()
 
         processRequest(socket, st);
 
-        // Reset state for potential keep-alive
-        st.buffer.clear();
-        st.state   = ClientState::ReadingRequest;
-        st.headers.clear();
-        st.contentLength = 0;
+        // processRequest defers disconnectFromHost, so socket is still in map.
+        // If it was removed (edge case), bail out to avoid use-after-free on |st|.
+        if (!m_clients.contains(socket))
+            return;
     }
 }
 
@@ -223,7 +223,12 @@ void HttpServer::sendResponse(QTcpSocket *socket, int statusCode,
 
     socket->write(response);
     socket->flush();
-    socket->disconnectFromHost();
+    // Defer disconnect so onDisconnected fires after current call stack unwinds,
+    // avoiding use-after-free of ClientState references in onReadyRead/processRequest.
+    QTimer::singleShot(0, socket, [socket]() {
+        if (socket->state() == QAbstractSocket::ConnectedState)
+            socket->disconnectFromHost();
+    });
 }
 
 void HttpServer::sendErrorResponse(QTcpSocket *socket, int statusCode,
