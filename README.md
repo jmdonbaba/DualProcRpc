@@ -37,4 +37,4 @@ ProgramA (Caller) ──HTTP POST──▶ ProgramB (Executor)
 
 ## Docs
 
-[代码说明文档.md](代码说明文档.md) — full architecture, API reference, protocol spec, extension guide.
+[ARCHITECTURE.md](ARCHITECTURE.md) — full architecture, API reference, protocol spec, extension guide.
